@@ -7,12 +7,14 @@ version: 0.0.1
 
 import os.path
 import sys
+import re
 import math
 import operator as op
 
 
 start_token = '('
 end_token = ')'
+comment = "<!"
 Symbol = str
 List = list
 Number = (int, float)
@@ -55,8 +57,21 @@ def return_success(success_type, msg):
     print(success_type, ':', msg)
 
 
+def to_py(code):
+    work = ""
+    for i in code:
+        if isinstance(i, list):
+            work += "(" + to_py(i) + ")"
+        else:
+            work += i + " "
+    return work
+
+
 def tokenize(chars):
-    return chars.replace(start_token, ' ( ').replace(end_token, ' ) ').split()
+    work = chars
+    #work = re.sub(comment + ".+", '', work)
+    work = work.replace(start_token, ' ( ').replace(end_token, ' ) ').split()
+    return work
 
 
 def parse(program):
@@ -75,6 +90,8 @@ def read_from_tokens(tokens):
         return ast
     elif token == end_token:
         return raise_error('SyntaxError', 'Unexpected )')
+    elif token == comment:
+        pass
     else:
         return atom(token)
 
@@ -161,6 +178,9 @@ def eval_code(x, env=global_env):
     elif x[0] == 'define':  # (define var exp)
         (_, var, exp) = x
         env[var] = eval_code(exp, env)
+    elif x[0] == 'pyexc':  # (pyexc exp)
+        (_, *exp) = x
+        exec(to_py(exp))
     elif x[0] == 'include':  # (include file)
         (_, exp) = x
         env[_](exp)
