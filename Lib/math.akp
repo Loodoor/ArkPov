@@ -3,4 +3,5 @@
     (define test 0)
     (display hello)
     (display test)
+    (quote test)
 )
