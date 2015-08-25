@@ -1,0 +1,6 @@
+(begin
+    (define hello 114)
+    (define test 0)
+    (display hello)
+    (display test)
+)
