@@ -1,3 +1,22 @@
 (begin
     (defun facto (n) factorielle (if (<= n 1) 1 (* n (facto (- n 1)))))
+
+    (defun facto_loop (n) factorielle_using_loop_to_prevent_from_max_recursion_depth
+        (begin
+            (begin
+                (define n2 1)
+                (define tot 1)
+            )
+            (until
+                (? (<= n2 n))
+                (begin
+                    (set! tot (* tot n2))
+                    (set! n2 (+ n2 1))
+                )
+                (begin
+                    (display tot)
+                )
+            )
+        )
+    )
 )

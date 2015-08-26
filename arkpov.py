@@ -202,7 +202,8 @@ help_lst = [
     [("pyexc", "prgm"), "Execute prgm as a python code"],
     [("include", "file"), "Include file. If file is not in the standart lib folder, it will search in the current directory for file"],
     [("set!", "var", "exp"), "Set the value of var as exp. If var doesn't exist, it will raise an exception"],
-    [("defun", "name", "(var...)", "desc", "exp"), "Create a function called name, with parameter(s) var..., desc as the description of the function (optional), and exp as the code to run"]
+    [("defun", "name", "(var...)", "desc", "exp"), "Create a function called name, with parameter(s) var..., desc as the description of the function (optional), and exp as the code to run"],
+    [("until", "test", "exp", "end"), "While the test is false, exp continue to run. end is executed when the test is true. Prefer boolean test who is shorter"]
 ]
 
 
@@ -220,7 +221,7 @@ def eval_code(x, env=global_env):
     elif x[0] == help_lst[1][0][0]:
         if len(x) == len(help_lst[1][0]):
             (_, exp) = x
-            return env[exp]
+            return env.find(exp)[exp]
         else:
             return raise_error("ArgumentError", "'" + x[0] + "' need exactly " + str(len(help_lst[1][0]) - 1) + " arguments")
     elif x[0] == help_lst[2][0][0]:
@@ -249,9 +250,7 @@ def eval_code(x, env=global_env):
             if var not in env.keys():
                 env[var] = eval_code(exp, env)
             else:
-                return raise_error("DefineError", "Can't override existing variable. Use set! instead")
-        else:
-            return raise_error("ArgumentError", "'" + x[0] + "' need exactly " + str(len(help_lst[5][0]) - 1) + " arguments")
+                return raise_error("DefineError", "Can't override existing variable. Use " + str(help_lst[8][0][0]) + " instead")
     elif x[0] == help_lst[6][0][0]:
         if len(x) >= len(help_lst[6][0]):
             (_, *exp) = x
@@ -282,6 +281,27 @@ def eval_code(x, env=global_env):
             env[var] = Procedure(params, exp, env)
         else:
             return raise_error("ArgumentError", "'" + x[0] + "' need exactly " + str(len(help_lst[9][0]) - 1) + " arguments")
+    elif x[0] == help_lst[10][0][0]:
+        if len(x) == len(help_lst[10][0]):
+            (_, test, body, end) = x
+            while True:
+                if eval_code(test, env):
+                    val = eval_code(body, env)
+                    if val is not None:
+                        print_(schemestr(val))
+                else:
+                    val = eval_code(end, env)
+                    if val is not None:
+                        print_(schemestr(val))
+                    break
+        elif len(x) == len(help_lst[10][0]) - 1:
+            (_, test, body) = x
+            while eval_code(test, env):
+                val = eval_code(body, env)
+                if val is not None:
+                    print_(schemestr(val))
+        else:
+            return raise_error("ArgumentError", "'" + x[0] + "' need at least " + str(len(help_lst[10][0]) - 2) + " arguments")
     elif x[0] == 'help':
         if len(x) == 1:
             for line in help_lst:
@@ -311,16 +331,17 @@ def eval_code(x, env=global_env):
                 print(tmp[1])
             if tmp == [0, 0, 0]:
                 for k, v in env.items():
-                    if isinstance(v, Procedure):
+                    if isinstance(v, Procedure) and k == exp:
                         desc = v.doc()
                         if desc:
                             print_(desc)
+                            break
                         else:
                             return raise_error("DocumentationError", "Documentation missing in '" + k + "'")
             else:
                 return raise_error("DocumentationError", "Couldn't find documentation for '" + exp + "'")
     else:  # (proc arg ...)
-        if not isinstance(env[x[0]], str):
+        if not isinstance(env.find(x[0])[x[0]], str):
             proc = eval_code(x[0], env)
             args = [eval_code(arg, env) for arg in x[1:]]
             return proc(*args)
