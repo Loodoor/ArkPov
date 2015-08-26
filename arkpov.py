@@ -10,6 +10,7 @@ import sys
 import math
 import operator as op
 import re
+import time
 
 
 start_token = '('
@@ -30,7 +31,7 @@ class Env(dict):
 
     def __getitem__(self, var):
         return dict.__getitem__(self, var) if (var in self)\
-            else raise_error('KeyError', '\'' + var + '\' doesn\'t exist')
+            else raise_error('KeyError', '\'' + str(var) + '\' doesn\'t exist')
 
     def find(self, var):
         if var in self:
@@ -38,7 +39,7 @@ class Env(dict):
         elif self.outer is not None:
             return self.outer.find(var)
         else:
-            raise_error('KeyError', '\'' + var + '\' doesn\'t exist')
+            raise_error('KeyError', '\'' + str(var) + '\' doesn\'t exist')
             return {var: None}
 
 
@@ -157,7 +158,8 @@ def standard_env():
         '>=': op.ge,
         '<=': op.le,
         '=': op.eq,
-        'abs': abs,
+        '!=': op.ne,
+        'not': op.not_,
         'append': op.add,
         'begin': lambda *x: x[-1],
         'car': lambda x: x[0],
@@ -171,7 +173,7 @@ def standard_env():
         'map': map,
         'max': max,
         'min': min,
-        'not': op.not_,
+        'time': time.time,
         'null': None,
         'null?': lambda x: x == [],
         'number?': lambda x: isinstance(x, Number),
@@ -344,6 +346,8 @@ def eval_code(x, env=global_env):
         if not isinstance(env.find(x[0])[x[0]], str):
             proc = eval_code(x[0], env)
             args = [eval_code(arg, env) for arg in x[1:]]
+            if len(args) == 1:
+                args.append(0)
             return proc(*args)
         else:
             (_, *var) = x
@@ -374,13 +378,13 @@ def loop():
     while True:
         code = input(prompt) if prompt != not_eof_prompt else code + " " + input(prompt)
 
-        if code[-1] != end_token:
+        if code.count(start_token) != code.count(end_token):
             prompt = not_eof_prompt
 
             if code in env.keys():
                 prompt = std_prompt
 
-        if prompt == std_prompt or (code[-1] == end_token and code.strip()[:2] != comment):
+        if code.count(start_token) == code.count(end_token) and code.strip()[:2] != comment:
             prompt = std_prompt
 
             parsed = parse(code)

@@ -1,4 +1,8 @@
 (begin
+    (defun abs (x) return_the_absolute_value_of_x (if (> x 0) x (negate x)))
+
+    (defun negate (x) negate_a_number (- 0 x))
+
     (defun facto (n) factorielle (if (<= n 1) 1 (* n (facto (- n 1)))))
 
     (defun facto_loop (n) factorielle_using_loop_to_prevent_from_max_recursion_depth
@@ -13,9 +17,7 @@
                     (set! tot (* tot n2))
                     (set! n2 (+ n2 1))
                 )
-                (begin
-                    (display tot)
-                )
+                (display tot)
             )
         )
     )
