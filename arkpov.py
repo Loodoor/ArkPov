@@ -399,13 +399,24 @@ def schemestr(exp):
 
 if __name__ == '__main__':
     arguments = []
+    cont = False
     try:
         arguments = sys.argv[1:]
         script = arguments[0]
         with open(script, 'r') as code_:
             print(eval_code(parse(code_.read())))
             return_success('ReadingSuccess', "File '" + script + "' successfully loaded and read")
+        try:
+            cont = arguments[1]
+            if int(cont):
+                loop()
+            else:
+                pass
+        except IndexError:
+            pass
+
     except IndexError:
         pass
 
-    loop()
+    if not arguments:
+        loop()
