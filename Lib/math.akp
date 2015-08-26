@@ -1,7 +1,3 @@
 (begin
-    (define hello 114)
-    (define test 0)
-    (display hello)
-    (display test)
-    (quote test)
+    (defun facto (n) factorielle (if (<= n 1) 1 (* n (facto (- n 1)))))
 )

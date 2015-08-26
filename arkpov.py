@@ -7,9 +7,9 @@ version: 0.0.1
 
 import os.path
 import sys
-import re
 import math
 import operator as op
+import re
 
 
 start_token = '('
@@ -29,24 +29,28 @@ class Env(dict):
         self.outer = outer
 
     def __getitem__(self, var):
-        return dict.__getitem__(self, var) if (var in self) else raise_error('KeyError', '\'' + var + '\' doesn\'t exist')
+        return dict.__getitem__(self, var) if (var in self)\
+            else raise_error('KeyError', '\'' + var + '\' doesn\'t exist')
 
     def find(self, var):
         if var in self:
             return self
         elif self.outer is not None:
-            return self.outer.outer.find(var)
+            return self.outer.find(var)
         else:
             raise_error('KeyError', '\'' + var + '\' doesn\'t exist')
             return {var: None}
 
 
 class Procedure(object):
-    def __init__(self, parms, body, env):
-        self.parms, self.body, self.env = parms, body, env
+    def __init__(self, parms, body, envi, desc=""):
+        self.parms, self.body, self.env, self.desc = parms, body, envi, desc
 
     def __call__(self, *args):
         return eval_code(self.body, Env(self.parms, args, self.env))
+
+    def doc(self):
+        return self.desc
 
 
 class Buffer:
@@ -90,10 +94,18 @@ def to_py(code):
     return work
 
 
+def proc_to_py(code):
+    l = ""
+    for i in code:
+        if not isinstance(i, list):
+            l += i
+        else:
+            l += "(" + proc_to_py(i) + ")"
+    return l
+
+
 def tokenize(chars):
-    work = chars
-    #work = re.sub(comment + ".+", '', work)
-    work = work.replace(start_token, ' ( ').replace(end_token, ' ) ').split()
+    work = chars.replace(start_token, ' ( ').replace(end_token, ' ) ').split()
     return work
 
 
@@ -138,6 +150,8 @@ def standard_env():
         '-': op.sub,
         '*': op.mul,
         '/': op.truediv,
+        '//': op.floordiv,
+        '%': op.mod,
         '>': op.gt,
         '<': op.lt,
         '>=': op.ge,
@@ -169,7 +183,9 @@ def standard_env():
             if os.path.exists("Lib/" + x + ext)
                   else ((eval_code(parse(open(x + ext, 'r').read())), return_success("IncludeSuccess", "Successful loading of '" + x + "'"))
                           if os.path.exists(x + ext)
-                                  else raise_error("FileNotFoundError", "File '" + x + "' doesn't seem to exist"))
+                                  else ((env.update({re.match(r'def (?P<name>.+)\(.+\):', open("Lib/" + x + ".py", "r").read()).groupdict()['name']: open("Lib/" + x + ".py", "r").read()}), return_success("IncludeSuccess", "Successful loading of '" + x + "'"))
+                                        if os.path.exists("Lib/" + x + ".py")
+                                              else raise_error("FileNotFoundError", "File '" + x + "' doesn't seem to exist")))
     })
     return env
 
@@ -185,7 +201,8 @@ help_lst = [
     [("define", "var", "exp"), "Define var and set its value as exp. If var already exists, it will raise an exception"],
     [("pyexc", "prgm"), "Execute prgm as a python code"],
     [("include", "file"), "Include file. If file is not in the standart lib folder, it will search in the current directory for file"],
-    [("set!", "var", "exp"), "Set the value of var as exp. If var doesn't exist, it will raise an exception"]
+    [("set!", "var", "exp"), "Set the value of var as exp. If var doesn't exist, it will raise an exception"],
+    [("defun", "name", "(var...)", "desc", "exp"), "Create a function called name, with parameter(s) var..., desc as the description of the function (optional), and exp as the code to run"]
 ]
 
 
@@ -212,7 +229,7 @@ def eval_code(x, env=global_env):
             return Procedure(parms, body, env)
         else:
             return raise_error("ArgumentError", "'" + x[0] + "' need exactly " + str(len(help_lst[2][0]) - 1) + " arguments")
-    elif x[0] == help_lst[3][0][0]:  # (if test conseq alt)
+    elif x[0] == help_lst[3][0][0]:
         if len(x) == len(help_lst[3][0]):
             (_, test, conseq, alt) = x
             exp = conseq if eval_code(test, env) else alt
@@ -256,6 +273,15 @@ def eval_code(x, env=global_env):
                 return raise_error("SetError", "Can't overwrite a non existing variable. Use define instead")
         else:
             return raise_error("ArgumentError", "'" + x[0] + "' need exactly " + str(len(help_lst[8][0]) - 1) + " arguments")
+    elif x[0] == help_lst[9][0][0]:
+        if len(x) == len(help_lst[9][0]):
+            (_, var, params, desc, exp) = x
+            env[var] = Procedure(params, exp, env, desc=desc)
+        elif len(x) == len(help_lst[9][0]) - 1:
+            (_, var, params, exp) = x
+            env[var] = Procedure(params, exp, env)
+        else:
+            return raise_error("ArgumentError", "'" + x[0] + "' need exactly " + str(len(help_lst[9][0]) - 1) + " arguments")
     elif x[0] == 'help':
         if len(x) == 1:
             for line in help_lst:
@@ -269,12 +295,12 @@ def eval_code(x, env=global_env):
                 print(line[1])
         if len(x) == 2:
             (_, exp) = x
-            tmp = []
+            tmp = [0, 0, 0]
             for line in help_lst:
                 if line[0][0] == exp:
                     tmp = line
                     break
-            if tmp:
+            if tmp != [0, 0, 0]:
                 print('(', end='')
                 for i in range(len(tmp[0])):
                     print(tmp[0][i], end='')
@@ -283,12 +309,38 @@ def eval_code(x, env=global_env):
                     else:
                         print(') : ', end='')
                 print(tmp[1])
+            if tmp == [0, 0, 0]:
+                for k, v in env.items():
+                    if isinstance(v, Procedure):
+                        desc = v.doc()
+                        if desc:
+                            print_(desc)
+                        else:
+                            return raise_error("DocumentationError", "Documentation missing in '" + k + "'")
             else:
                 return raise_error("DocumentationError", "Couldn't find documentation for '" + exp + "'")
     else:  # (proc arg ...)
-        proc = eval_code(x[0], env)
-        args = [eval_code(arg, env) for arg in x[1:]]
-        return proc(*args)
+        if not isinstance(env[x[0]], str):
+            proc = eval_code(x[0], env)
+            args = [eval_code(arg, env) for arg in x[1:]]
+            return proc(*args)
+        else:
+            (_, *var) = x
+            args = re.match(r"def (?P<name>.+)\((?P<args>.+)\):", env[_]).groupdict()['args'].replace(',', '-').strip().split('-')
+            if len(args) <= len(var):
+                dctargs = {k: 0 for k in args}
+                i = 0
+                for k, v in dctargs.items():
+                    dctargs[k] = var[i]
+                    i += 1
+                tmp = env[_] + "\nprint(" + str(_) + "("
+                for k, v in dctargs.items():
+                    tmp += str(v) + ", "
+                tmp = tmp[:-2:] + "))"
+
+                exec(tmp)
+            else:
+                return raise_error("ArgumentError", "'" + str(_) + "' need at least " + str(len(args)) + " arguments")
 
 
 def loop():
@@ -307,7 +359,7 @@ def loop():
             if code in env.keys():
                 prompt = std_prompt
 
-        if prompt == std_prompt or code[-1] == end_token:
+        if prompt == std_prompt or (code[-1] == end_token and code.strip()[:2] != comment):
             prompt = std_prompt
 
             parsed = parse(code)
