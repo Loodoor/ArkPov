@@ -1,0 +1,1 @@
+(defun count (item L) count_how_many_times_item_is_in_L (if L (+ (equal? item (car L)) (count item (cdr L))) 0))

@@ -1,0 +1,10 @@
+(defun facto (n)
+    factorielle
+    (if
+        (<= n 1)
+        1
+        (* n
+            (facto (- n 1))
+        )
+    )
+)

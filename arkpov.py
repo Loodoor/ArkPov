@@ -13,8 +13,8 @@ import re
 import time
 
 
-start_token = '('
-end_token = ')'
+start_token = '(', '['
+end_token = ')', ']'
 comment = "<!"
 Symbol = str
 List = list
@@ -30,7 +30,7 @@ class Env(dict):
         self.outer = outer
 
     def __getitem__(self, var):
-        return dict.__getitem__(self, var) if (var in self)\
+        return dict.__getitem__(self, var) if (var in self) \
             else raise_error('KeyError', '\'' + str(var) + '\' doesn\'t exist')
 
     def find(self, var):
@@ -106,7 +106,10 @@ def proc_to_py(code):
 
 
 def tokenize(chars):
-    work = chars.replace(start_token, ' ( ').replace(end_token, ' ) ').split()
+    work = chars
+    for i in range(2):
+        work = work.replace(start_token[i], ' ( ').replace(end_token[i], ' ) ')
+    work = work.split()
     return work
 
 
@@ -118,14 +121,14 @@ def read_from_tokens(tokens):
     if len(tokens) == 0:
         return raise_error('SyntaxError', 'Unexpected EOF while reading')
     token = tokens.pop(0)
-    if start_token == token:
+    if token in start_token:
         ast = []
-        while tokens[0] != end_token:
+        while tokens[0] not in end_token:
             ast.append(read_from_tokens(tokens))
         tokens.pop(0)  # pop off ')'
         return ast
-    elif token == end_token:
-        return raise_error('SyntaxError', 'Unexpected ' + end_token)
+    elif token in end_token:
+        return raise_error('SyntaxError', 'Unexpected ' + token)
     elif token == comment:
         pass
     else:
@@ -140,6 +143,19 @@ def atom(token):
             return float(token)
         except ValueError:
             return Symbol(token)
+
+
+def join(lst, sep=''):
+    work = ""
+    if type(lst) == tuple:
+        for i in lst[0]:
+            work += Symbol(i) + sep
+    else:
+        for i in lst:
+            work += Symbol(i) + sep
+    if sep != '':
+        work = work[:-1]
+    return work
 
 
 def standard_env():
@@ -169,25 +185,34 @@ def standard_env():
         'equal?': op.eq,
         'length': len,
         'list': lambda *x: list(x),
-        'list?': lambda x: isinstance(x, list),
+        'list?': lambda x: isinstance(x, List),
         'map': map,
         'max': max,
         'min': min,
         'time': time.time,
         'null': None,
+        'read': lambda x: open(join(x), "r").read(),
+        'write': lambda x: open(join(x[0]), "w").write(eval_code(x[1])),
+        'splittext': lambda x: eval_code(x[0], env).split(join(x[1:])),
         'null?': lambda x: x == [],
         'number?': lambda x: isinstance(x, Number),
         'procedure?': callable,
         'round': round,
+        'symbol': lambda *x: join(x, ' '),
         'symbol?': lambda x: isinstance(x, Symbol),
         'type': lambda x: type(x),
-        'include': lambda x: (eval_code(parse(open("Lib/" + x + ext, 'r').read())), return_success("IncludeSuccess", "Successful loading of '" + x + "'"))
-            if os.path.exists("Lib/" + x + ext)
-                  else ((eval_code(parse(open(x + ext, 'r').read())), return_success("IncludeSuccess", "Successful loading of '" + x + "'"))
-                          if os.path.exists(x + ext)
-                                  else ((env.update({re.match(r'def (?P<name>.+)\(.+\):', open("Lib/" + x + ".py", "r").read()).groupdict()['name']: open("Lib/" + x + ".py", "r").read()}), return_success("IncludeSuccess", "Successful loading of '" + x + "'"))
-                                        if os.path.exists("Lib/" + x + ".py")
-                                              else raise_error("FileNotFoundError", "File '" + x + "' doesn't seem to exist")))
+        'include': lambda x: (eval_code(parse(open("Lib/" + x + ext, 'r').read())),
+                              return_success("IncludeSuccess", "Successful loading of '" + x + "'"))
+        if os.path.exists("Lib/" + x + ext)
+        else ((eval_code(parse(open(x + ext, 'r').read())),
+               return_success("IncludeSuccess", "Successful loading of '" + x + "'"))
+              if os.path.exists(x + ext)
+              else ((env.update({re.match(r'def (?P<name>.+)\(.+\):',
+                                          open("Lib/" + x + ".py", "r").read())
+                                .groupdict()['name']: open("Lib/" + x + ".py", "r").read()}),
+                     return_success("IncludeSuccess", "Successful loading of '" + x + "'"))
+                    if os.path.exists("Lib/" + x + ".py")
+                    else raise_error("FileNotFoundError", "File '" + x + "' doesn't seem to exist")))
     })
     return env
 
@@ -195,17 +220,23 @@ def standard_env():
 global_env = standard_env()
 
 help_lst = [
-    [("quote", "exp"), "Display exp"],
-    [("display",  "var"), "Display the value of var"],
+    [("say", "exp"), "Display exp"],
+    [("show", "var"), "Display the value of var"],
     [("lambda", "(var...)", "body"), "Create a lambda with parameter(s) var... and body as the code"],
     [("if", "test", "conseq", "alt"), "If test is true, it will executed conseq. Else, alt will be executed"],
     [("?", "test"), "If test is true, it will return 1. Else, it will return 0"],
-    [("define", "var", "exp"), "Define var and set its value as exp. If var already exists, it will raise an exception"],
+    [("new", "var", "exp"),
+     "Define var and set its value as exp. If var already exists, it will raise an exception"],
     [("pyexc", "prgm"), "Execute prgm as a python code"],
-    [("include", "file"), "Include file. If file is not in the standart lib folder, it will search in the current directory for file"],
+    [("include", "file"),
+     "Include file. If file is not in the standart lib folder, it will search in the current directory for file"],
     [("set!", "var", "exp"), "Set the value of var as exp. If var doesn't exist, it will raise an exception"],
-    [("defun", "name", "(var...)", "desc", "exp"), "Create a function called name, with parameter(s) var..., desc as the description of the function (optional), and exp as the code to run"],
-    [("until", "test", "exp", "end"), "While the test is false, exp continue to run. end is executed when the test is true. Prefer boolean test who is shorter"]
+    [("defun", "name", "(var...)", "desc", "exp"),
+     "Create a function called name, with parameter(s) var..., "
+     "desc as the description of the function (optional), and exp as the code to run"],
+    [("until", "test", "exp", "end"),
+     "While the test is false, exp continue to run. end is executed when the test is true. "
+     "Prefer boolean test who is shorter"]
 ]
 
 
@@ -219,52 +250,60 @@ def eval_code(x, env=global_env):
             (_, *exp) = x
             return ' '.join(exp)
         else:
-            return raise_error("ArgumentError", "'" + x[0] + "' need at least " + str(len(help_lst[0][0]) - 1) + " arguments")
+            return raise_error("ArgumentError",
+                               "'" + x[0] + "' need at least " + str(len(help_lst[0][0]) - 1) + " arguments")
     elif x[0] == help_lst[1][0][0]:
         if len(x) == len(help_lst[1][0]):
             (_, exp) = x
             return env.find(exp)[exp]
         else:
-            return raise_error("ArgumentError", "'" + x[0] + "' need exactly " + str(len(help_lst[1][0]) - 1) + " arguments")
+            return raise_error("ArgumentError",
+                               "'" + x[0] + "' need exactly " + str(len(help_lst[1][0]) - 1) + " arguments")
     elif x[0] == help_lst[2][0][0]:
         if len(x) == len(help_lst[2][0]):
             (_, parms, body) = x
             return Procedure(parms, body, env)
         else:
-            return raise_error("ArgumentError", "'" + x[0] + "' need exactly " + str(len(help_lst[2][0]) - 1) + " arguments")
+            return raise_error("ArgumentError",
+                               "'" + x[0] + "' need exactly " + str(len(help_lst[2][0]) - 1) + " arguments")
     elif x[0] == help_lst[3][0][0]:
         if len(x) == len(help_lst[3][0]):
             (_, test, conseq, alt) = x
             exp = conseq if eval_code(test, env) else alt
             return eval_code(exp, env)
         else:
-            return raise_error("ArgumentError", "'" + x[0] + "' need exactly " + str(len(help_lst[3][0]) - 1) + " arguments")
+            return raise_error("ArgumentError",
+                               "'" + x[0] + "' need exactly " + str(len(help_lst[3][0]) - 1) + " arguments")
     elif x[0] == help_lst[4][0][0]:
         if len(x) == len(help_lst[4][0]):
             (_, test) = x
             exp = 1 if eval_code(test, env) else 0
             return exp
         else:
-            return raise_error("ArgumentError", "'" + x[0] + "' need exactly " + str(len(help_lst[4][0]) - 1) + " arguments")
+            return raise_error("ArgumentError",
+                               "'" + x[0] + "' need exactly " + str(len(help_lst[4][0]) - 1) + " arguments")
     elif x[0] == help_lst[5][0][0]:
         if len(x) == len(help_lst[5][0]):
             (_, var, exp) = x
             if var not in env.keys():
                 env[var] = eval_code(exp, env)
             else:
-                return raise_error("DefineError", "Can't override existing variable. Use " + str(help_lst[8][0][0]) + " instead")
+                return raise_error("DefineError",
+                                   "Can't override existing variable. Use " + str(help_lst[8][0][0]) + " instead")
     elif x[0] == help_lst[6][0][0]:
         if len(x) >= len(help_lst[6][0]):
             (_, *exp) = x
-            exec(to_py(exp))
+            return exec(to_py(exp))
         else:
-            return raise_error("ArgumentError", "'" + x[0] + "' need at least " + str(len(help_lst[6][0]) - 1) + " arguments")
+            return raise_error("ArgumentError",
+                               "'" + x[0] + "' need at least " + str(len(help_lst[6][0]) - 1) + " arguments")
     elif x[0] == help_lst[7][0][0]:
         if len(x) == len(help_lst[7][0]):
             (_, exp) = x
             env[_](exp)
         else:
-            return raise_error("ArgumentError", "'" + x[0] + "' need exactly " + str(len(help_lst[7][0]) - 1) + " arguments")
+            return raise_error("ArgumentError",
+                               "'" + x[0] + "' need exactly " + str(len(help_lst[7][0]) - 1) + " arguments")
     elif x[0] == help_lst[8][0][0]:
         if len(x) == len(help_lst[8][0]):
             (_, var, exp) = x
@@ -273,7 +312,8 @@ def eval_code(x, env=global_env):
             else:
                 return raise_error("SetError", "Can't overwrite a non existing variable. Use define instead")
         else:
-            return raise_error("ArgumentError", "'" + x[0] + "' need exactly " + str(len(help_lst[8][0]) - 1) + " arguments")
+            return raise_error("ArgumentError",
+                               "'" + x[0] + "' need exactly " + str(len(help_lst[8][0]) - 1) + " arguments")
     elif x[0] == help_lst[9][0][0]:
         if len(x) == len(help_lst[9][0]):
             (_, var, params, desc, exp) = x
@@ -282,7 +322,8 @@ def eval_code(x, env=global_env):
             (_, var, params, exp) = x
             env[var] = Procedure(params, exp, env)
         else:
-            return raise_error("ArgumentError", "'" + x[0] + "' need exactly " + str(len(help_lst[9][0]) - 1) + " arguments")
+            return raise_error("ArgumentError",
+                               "'" + x[0] + "' need exactly " + str(len(help_lst[9][0]) - 1) + " arguments")
     elif x[0] == help_lst[10][0][0]:
         if len(x) == len(help_lst[10][0]):
             (_, test, body, end) = x
@@ -303,7 +344,8 @@ def eval_code(x, env=global_env):
                 if val is not None:
                     print_(schemestr(val))
         else:
-            return raise_error("ArgumentError", "'" + x[0] + "' need at least " + str(len(help_lst[10][0]) - 2) + " arguments")
+            return raise_error("ArgumentError",
+                               "'" + x[0] + "' need at least " + str(len(help_lst[10][0]) - 2) + " arguments")
     elif x[0] == 'help':
         if len(x) == 1:
             for line in help_lst:
@@ -345,13 +387,19 @@ def eval_code(x, env=global_env):
     else:  # (proc arg ...)
         if not isinstance(env.find(x[0])[x[0]], str):
             proc = eval_code(x[0], env)
-            args = [eval_code(arg, env) for arg in x[1:]]
-            if len(args) == 1:
-                args.append(0)
-            return proc(*args)
+            if x[0] != "symbol" and x[0] != "read" and x[0] != "write" and x[0] != "splittext":
+                args = [eval_code(arg, env) for arg in x[1:]]
+                try:
+                    return proc(*args)
+                except TypeError:
+                    args.append(1)
+                    return proc(*args)
+            else:
+                return proc(x[1:])
         else:
             (_, *var) = x
-            args = re.match(r"def (?P<name>.+)\((?P<args>.+)\):", env[_]).groupdict()['args'].replace(',', '-').strip().split('-')
+            args = re.match(r"def (?P<name>.+)\((?P<args>.+)\):", env[_]).groupdict()['args']\
+                .replace(',', '-').strip().split('-')
             if len(args) <= len(var):
                 dctargs = {k: 0 for k in args}
                 i = 0
@@ -378,13 +426,14 @@ def loop():
     while True:
         code = input(prompt) if prompt != not_eof_prompt else code + " " + input(prompt)
 
-        if code.count(start_token) != code.count(end_token):
+        if code.count(start_token[0]) + code.count(start_token[1]) != code.count(end_token[0]) + code.count(end_token[1]):
             prompt = not_eof_prompt
 
             if code in env.keys():
                 prompt = std_prompt
 
-        if code.count(start_token) == code.count(end_token) and code.strip()[:2] != comment:
+        if code.count(start_token[0]) + code.count(start_token[1]) == code.count(end_token[0]) + code.count(end_token[1])\
+                and code.strip()[:2] != comment:
             prompt = std_prompt
 
             parsed = parse(code)
@@ -396,7 +445,7 @@ def loop():
 
 def schemestr(exp):
     if isinstance(exp, list):
-        return '(' + ' '.join(map(schemestr, exp)) + ')'
+        return Symbol(exp)[1:-1] #'(' + ' '.join(map(schemestr, exp)) + ')'
     else:
         return str(exp)
 
