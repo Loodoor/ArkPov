@@ -445,7 +445,7 @@ def loop():
 
 def schemestr(exp):
     if isinstance(exp, list):
-        return Symbol(exp)[1:-1] #'(' + ' '.join(map(schemestr, exp)) + ')'
+        return Symbol(exp)[1:-1]  # '(' + ' '.join(map(schemestr, exp)) + ')'
     else:
         return str(exp)
 
