@@ -65,24 +65,12 @@ class Buffer:
         return self.buffer
 
 
-buffer = Buffer()
-
-
-def print_(*args, end='\r\n', file=sys.stdout, sep=' ', flush=False):
-    for i in args:
-        file.write(str(i) + sep)
-        buffer.add(str(i), sep)
-    file.write(end)
-    if flush:
-        file.flush()
-
-
 def raise_error(err_type, msg):
-    print_(err_type, ':', msg)
+    print(err_type, ':', msg)
 
 
 def return_success(success_type, msg):
-    print_(success_type, ':', msg)
+    print(success_type, ':', msg)
 
 
 def to_py(code):
@@ -310,7 +298,7 @@ def eval_code(x, env=global_env):
             if var in env.keys():
                 env[var] = eval_code(exp, env)
             else:
-                return raise_error("SetError", "Can't overwrite a non existing variable. Use define instead")
+                return raise_error("SetError", "Can't overwrite a non existing variable. Use new instead")
         else:
             return raise_error("ArgumentError",
                                "'" + x[0] + "' need exactly " + str(len(help_lst[8][0]) - 1) + " arguments")
@@ -331,18 +319,18 @@ def eval_code(x, env=global_env):
                 if eval_code(test, env):
                     val = eval_code(body, env)
                     if val is not None:
-                        print_(schemestr(val))
+                        print(schemestr(val))
                 else:
                     val = eval_code(end, env)
                     if val is not None:
-                        print_(schemestr(val))
+                        print(schemestr(val))
                     break
         elif len(x) == len(help_lst[10][0]) - 1:
             (_, test, body) = x
             while eval_code(test, env):
                 val = eval_code(body, env)
                 if val is not None:
-                    print_(schemestr(val))
+                    print(schemestr(val))
         else:
             return raise_error("ArgumentError",
                                "'" + x[0] + "' need at least " + str(len(help_lst[10][0]) - 2) + " arguments")
@@ -378,7 +366,7 @@ def eval_code(x, env=global_env):
                     if isinstance(v, Procedure) and k == exp:
                         desc = v.doc()
                         if desc:
-                            print_(desc)
+                            print(desc)
                             break
                         else:
                             return raise_error("DocumentationError", "Documentation missing in '" + k + "'")
@@ -440,7 +428,26 @@ def loop():
             val = eval_code(parsed)
 
             if val is not None:
-                print_(schemestr(val))
+                print(schemestr(val))
+
+
+def loop_on_script(texte):
+    code = ""
+    ligne = 0
+
+    while True:
+        code = texte[ligne]
+
+        parsed = parse(code)
+        val = eval_code(parsed)
+
+        if val is not None:
+            print(schemestr(val))
+        
+        ligne = ligne + 1 if ligne + 1 < len(texte) else -1
+        
+        if ligne < 0:
+            break
 
 
 def schemestr(exp):
@@ -457,7 +464,7 @@ if __name__ == '__main__':
         arguments = sys.argv[1:]
         script = arguments[0]
         with open(script, 'r') as code_:
-            print(eval_code(parse(code_.read())))
+            loop_on_script(code_.readlines())
             return_success('ReadingSuccess', "File '" + script + "' successfully loaded and read")
         try:
             cont = arguments[1]

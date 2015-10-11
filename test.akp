@@ -1,0 +1,5 @@
+(new r 10)
+(show r)
+(say i m a test !)
+(new e Symbol(hello world))
+(show e)

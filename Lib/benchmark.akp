@@ -1,21 +1,20 @@
-<! tools to test the speed of your arkpov code
-(begin
-    (defun benchmark (func arg tests)
-        (begin
-            (new start 0)
-            (new total_time 0)
+(defun benchmark (func arg tests)
+    (begin
+        (new start 0)
+        (new total_time 0)
+        (new start symbol(>))
 
-            (set! tests (if (> tests 5) tests 5))
+        (set! tests (if (> tests 5) tests 5))
 
-            (until
-                (? (>= tests 0))
-                (begin
-                    (set! start (time))
-                    (func arg)
-                    (set! tests (- tests 1))
-                    (set! total_time (- (time) start))
-                    (show total_time)
-                )
+        (until
+            (? (>= tests 0))
+            (begin
+                (set! start (time))
+                (func arg)
+                (set! tests (- tests 1))
+                (set! total_time (- (time) start))
+                (show start)
+                (show total_time)
             )
         )
     )
