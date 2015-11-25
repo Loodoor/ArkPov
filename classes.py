@@ -6,4 +6,9 @@
     
     def find(self, var):
         "Find the innermost Env where var appears."
-        return self if var in self else self.outer.find(var)
+        if var in self:
+            return self
+        elif self.outer is not None:
+            return self.outer.find(var)
+        else:
+            return {var: None}

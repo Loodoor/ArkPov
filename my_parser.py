@@ -20,6 +20,8 @@ def parser(tokens):
     elif token == R_TOKEN:
         print(ERROR + "Unexpected " + R_TOKEN + " while parsing")
         return ""
+    elif token == COMMENT:
+        pass
     else:
         return atom(token)
 

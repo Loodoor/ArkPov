@@ -11,23 +11,19 @@ class Procedure(object):
     def __init__(self, parms, body, env):
         self.parms, self.body, self.env = parms, body, env
     
-    def __call__(self, *args):
+    def __call__(self, *args): 
         return evaluate(self.body, Env(self.parms, args, self.env))
 
 
 def evaluate(code: list, env: Env):
     if isinstance(code, str):
-        if code in env.find(code):
-            print(code)
-            return env.find(code)[code]
-        print(ERROR + code + " not found. Probably this variable doesn't exist.")
-        return ""
+        return env.find(code)[code]
     elif not isinstance(code, list):
         return code
     # gestion des mots clés
     elif code[0] == 'quote':
         _, *exp = code
-        return exp
+        return ' '.join(exp)
     elif code[0] == 'if':
         if len(code) == 4:
             _, test, conseq, alt = code
@@ -50,8 +46,8 @@ def evaluate(code: list, env: Env):
             env[var] = evaluate(exp, env)
         else:
             print(ERROR + var + " doesn't exist. Use let to create it")
-    elif code[0] == "lambda":
-        _, parms, body = code[0], code[1:-2], code[-1]
+    elif code[0] == 'lambda':
+        _, parms, body = code
         return Procedure(parms, body, env)
     # gestion des procédures et callable
     else:
