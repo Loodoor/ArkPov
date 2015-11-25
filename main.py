@@ -4,9 +4,10 @@ import math
 import operator as op
 from constants import *
 from parser import *
+from classes import *
 
 
-def evaluate(code: list, env: dict, vars: dict):
+def evaluate(code: list, env: Env, vars: Env):
     if isinstance(code, str):
         if code in env.keys():
             return env[code]
@@ -33,15 +34,21 @@ def evaluate(code: list, env: dict, vars: dict):
     elif code[0] == 'let':
         _, var, exp = code
         if var not in vars.keys():
-            vars[var] = evaluate(exp, env, vars)
+            try:
+                vars[var] = evaluate(exp, env, vars)
+            except SyntaxError:
+                vars[var] = Procedure('n', exp, env, vars)
         else:
-            print(ERROR + var + " already exist. Impossible de overwrite it. Use set instead")
+            print(ERROR + var + " already exist. Impossible to overwrite it. Use set instead")
     elif code[0] == 'set':
         _, var, exp = code
         if var in vars.keys():
             vars[var] = evaluate(exp, env, vars)
         else:
             print(ERROR + var + " doesn't exist. Use let to create it")
+    elif code[0] == "lambda":
+        _, parms, body = code[0], code[1:-2], code[-1]
+        return Procedure(parms, body, env, vars)
     # gestion des procédures et callable
     else:
         proc = evaluate(code[0], env, vars)
@@ -50,7 +57,7 @@ def evaluate(code: list, env: dict, vars: dict):
 
 
 def main(env: dict):
-    var_env = VarsEnv()
+    var_env = Env()
     
     while True:
         line = input("Ark:: ")
@@ -64,7 +71,7 @@ def main(env: dict):
 
 
 if __name__ == '__main__':
-    env = dict()
+    env = Env()
     env.update(vars(math)) # sin, cos, sqrt, pi, ...
     env.update({
         '+': op.add,
@@ -101,8 +108,12 @@ if __name__ == '__main__':
     if len(args) > 1:
         args = args[1:]
         filename = args[0]
+        if len(args) > 1:
+            do_not_close = args[0]
         if os.path.exists(filename):
             with open(filename) as file:
                 pass
+        if do_not_close:
+            main(env)
     else:
         main(env)

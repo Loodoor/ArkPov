@@ -16,6 +16,7 @@ def parser(tokens):
         while tokens[0] != R_TOKEN:
             ast.append(parser(tokens))
         tokens.pop(0)
+        return ast
     elif token == R_TOKEN:
         print(ERROR + "Unexpected " + R_TOKEN + " while parsing")
         return ""
