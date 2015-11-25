@@ -24,6 +24,19 @@ def evaluate(code: list, env: Env):
     elif code[0] == 'quote':
         _, *exp = code
         return ' '.join(exp)
+    elif code[0] == 'input':
+        if len(code) == 3:
+            _, var, *exp = code
+            if var in env.find(var):
+                env[var] = input(' '.join(exp))
+            else:
+                print(ERROR + var + " doesn't exist. Impossible to perform input")
+        if len(code) == 2:
+            _, var = code
+            if var in env.find(var):
+                env[var] = input()
+            else:
+                print(ERROR + var + " doesn't exist. Impossible to perform input")
     elif code[0] == 'if':
         if len(code) == 4:
             _, test, conseq, alt = code
@@ -49,6 +62,26 @@ def evaluate(code: list, env: Env):
     elif code[0] == 'lambda':
         _, parms, body = code
         return Procedure(parms, body, env)
+    # gestion des calculs
+    elif code[0] in OPS:
+        op, *terms = code
+        if op == '+':
+            return sum(terms)
+        if op == '-':
+            tot = code[0]
+            for term in terms[1:]:
+                tot -= term
+            return tot
+        if op == '*':
+            tot = code[0]
+            for term in terms[1:]:
+                tot *= term
+            return tot
+        if op == '/':
+            tot = code[0]
+            for term in terms:
+                tot /= term
+            return tot
     # gestion des procédures et callable
     else:
         proc = evaluate(code[0], env)
@@ -72,10 +105,6 @@ if __name__ == '__main__':
     env = Env()
     env.update(vars(math)) # sin, cos, sqrt, pi, ...
     env.update({
-        '+': op.add,
-        '-': op.sub,
-        '*': op.mul,
-        '/': op.truediv,
         '>': op.gt,
         '<': op.lt,
         '>=': op.ge,

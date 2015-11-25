@@ -3,3 +3,4 @@ R_TOKEN = ')'
 COMMENT = ';'
 ERROR = "Error:: "
 WARNING = "Warning:: "
+OPS = '+-/*'
