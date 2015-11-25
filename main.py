@@ -2,19 +2,26 @@
 import sys
 import math
 import operator as op
-from constants import *
-from parser import *
+from my_parser import *
 from classes import *
 
 
-def evaluate(code: list, env: Env, vars: Env):
+class Procedure(object):
+    "A user-defined Scheme procedure."
+    def __init__(self, parms, body, env):
+        self.parms, self.body, self.env = parms, body, env
+    
+    def __call__(self, *args):
+        return evaluate(self.body, Env(self.parms, args, self.env))
+
+
+def evaluate(code: list, env: Env):
     if isinstance(code, str):
-        if code in env.keys():
-            return env[code]
-         elif code in vars.keys():
-            return vars[code]
-         print(ERROR + code + " not found. Probably this variable doesn't exist.")
-         return ""
+        if code in env.find(code):
+            print(code)
+            return env.find(code)[code]
+        print(ERROR + code + " not found. Probably this variable doesn't exist.")
+        return ""
     elif not isinstance(code, list):
         return code
     # gestion des mots clés
@@ -24,44 +31,39 @@ def evaluate(code: list, env: Env, vars: Env):
     elif code[0] == 'if':
         if len(code) == 4:
             _, test, conseq, alt = code
-            exp = conseq if evaluate(test, env, vars) else alt
-            return eval(exp, env, vars)
+            exp = conseq if evaluate(test, env) else alt
+            return eval(exp, env)
         elif len(code) == 3:
             _, test, conseq = code
-            exp = conseq if evaluate(test, env, vars) else not conseq
+            exp = conseq if evaluate(test, env) else not conseq
             print(WARNING + "the alternative was missing, so Ark's parser decide to return not conseq if the test would fail")
-            return eval(exp, env, vars)
+            return eval(exp, env)
     elif code[0] == 'let':
         _, var, exp = code
-        if var not in vars.keys():
-            try:
-                vars[var] = evaluate(exp, env, vars)
-            except SyntaxError:
-                vars[var] = Procedure('n', exp, env, vars)
+        if var not in env.keys():
+            env[var] = evaluate(exp, env)
         else:
             print(ERROR + var + " already exist. Impossible to overwrite it. Use set instead")
     elif code[0] == 'set':
         _, var, exp = code
-        if var in vars.keys():
-            vars[var] = evaluate(exp, env, vars)
+        if var in env.keys():
+            env[var] = evaluate(exp, env)
         else:
             print(ERROR + var + " doesn't exist. Use let to create it")
     elif code[0] == "lambda":
         _, parms, body = code[0], code[1:-2], code[-1]
-        return Procedure(parms, body, env, vars)
+        return Procedure(parms, body, env)
     # gestion des procédures et callable
     else:
-        proc = evaluate(code[0], env, vars)
-        args = [evaluate(arg, env, vars) for arg in code[1:]]
+        proc = evaluate(code[0], env)
+        args = [evaluate(arg, env) for arg in code[1:]]
         return proc(*args)
 
 
 def main(env: dict):
-    var_env = Env()
-    
     while True:
         line = input("Ark:: ")
-        ret = evaluate(parser(tokenize(line)), env=env, vars=var_env)
+        ret = evaluate(parser(tokenize(line)), env=env)
         
         if ret:
             if isinstance(ret, list):

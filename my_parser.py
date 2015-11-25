@@ -1,4 +1,4 @@
-﻿import constants
+﻿from constants import *
 
 
 def tokenize(code: str):
@@ -26,9 +26,9 @@ def parser(tokens):
 
 def atom(code: str):
     try:
-        return float(code)
+        return int(code)
     except ValueError:
         try:
-            return int(code)
+            return float(code)
         except ValueError:
             return code
